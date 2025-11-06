@@ -15,7 +15,10 @@ app = Flask(__name__)
 
 # --- Config ---
 SPREADSHEET_ID = "1GLKQllVmysW4ARvx7RWs2KDQOmsnNMwJWaqebFsMqs4"
-SCOPE = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 creds_json = os.getenv("GOOGLE_CREDS")
 CREDS = Credentials.from_service_account_info(json.loads(creds_json))
 client = gspread.authorize(CREDS)
@@ -74,5 +77,6 @@ def api_data():
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
+
 
 
