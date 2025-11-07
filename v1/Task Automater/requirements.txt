@@ -1,6 +1,6 @@
 Flask==3.0.3
 gspread==6.1.2
 google-auth==2.34.0
-pandas==2.2.3
-apscheduler==3.10.4
+google-auth-oauthlib==1.2.1
 gunicorn==21.2.0
+requests==2.31.0
