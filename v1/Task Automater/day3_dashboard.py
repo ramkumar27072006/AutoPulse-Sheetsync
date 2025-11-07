@@ -1,82 +1,91 @@
-"""
-Tasklytics - Day 3.5
----------------------------------
-Adds AI-style insight generation with dynamic summaries
-based on live Google Sheets or local data.
-"""
-
-from flask import Flask, render_template, jsonify
-import gspread, json, time
-from google.oauth2.service_account import Credentials
-import statistics
+# day3_dashboard.py
 import os
+import json
+import pandas as pd
+from flask import Flask, jsonify, render_template
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-# --- Config ---
-SPREADSHEET_ID = "1GLKQllVmysW4ARvx7RWs2KDQOmsnNMwJWaqebFsMqs4"
-SCOPE = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-creds_json = os.getenv("GOOGLE_CREDS")
-CREDS = Credentials.from_service_account_info(json.loads(creds_json))
-client = gspread.authorize(CREDS)
+# ------------------------------------------------------------
+# 1️⃣  Google Sheets setup
+# ------------------------------------------------------------
+SHEET_ID = os.getenv("SHEET_ID")                 # from Render → Environment Variables
+SHEET_NAME = os.getenv("SHEET_NAME", "Sheet1")
+GOOGLE_CREDS = os.getenv("GOOGLE_CREDS")         # full JSON string (service account)
 
-def fetch_data():
-    """Fetches data from Google Sheets"""
+if not (SHEET_ID and GOOGLE_CREDS):
+    raise RuntimeError("Missing SHEET_ID or GOOGLE_CREDS environment variables.")
+
+creds = Credentials.from_service_account_info(json.loads(GOOGLE_CREDS))
+gc = gspread.authorize(creds)
+sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+
+# ------------------------------------------------------------
+# 2️⃣  Data update logic
+# ------------------------------------------------------------
+def update_google_sheet():
+    """Reads sales_data.xlsx and appends one column daily."""
     try:
-        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-        rows = sheet.get_all_records()
-        last_updated = time.strftime("%Y-%m-%d %H:%M:%S")
-        return {"data": rows, "updated": last_updated}
+        data_path = os.path.join(os.path.dirname(__file__), "sales_data.xlsx")
+        df = pd.read_excel(data_path)
+
+        # Expecting columns like ['category', 'revenue_day1', 'revenue_day2', ...]
+        # Determine how many columns already exist in Sheet
+        existing = sheet.get_all_records()
+        last_col = len(existing[0]) if existing else 0
+
+        # Select next revenue column from Excel
+        excel_cols = list(df.columns)
+        base_cols = ["category", "revenue"]
+        extra_cols = [c for c in excel_cols if c not in base_cols]
+
+        next_index = min(len(extra_cols), last_col - 1)  # fallback
+        if last_col < len(excel_cols):
+            next_col = excel_cols[last_col]
+        else:
+            print("✅ All columns already synced.")
+            return
+
+        # Prepare column header and values
+        header = f"{next_col} ({datetime.now().strftime('%b %d %H:%M')})"
+        values = [[v] for v in df[next_col].tolist()]
+
+        # Write new header
+        sheet.update_cell(1, last_col + 1, header)
+        # Write column values
+        sheet.update(f"{chr(65 + last_col)}2:{chr(65 + last_col)}{len(values)+1}", values)
+
+        print(f"✅ Synced column {next_col} → Google Sheet at {datetime.now()}")
+
     except Exception as e:
-        print("⚠️ Google Sheets fetch failed:", e)
-        return {"data": [], "updated": "Error"}
+        print("❌ Update failed:", e)
 
-def generate_insight(rows):
-    """Generates human-readable insights."""
-    if not rows:
-        return "No data available for insight generation."
+# ------------------------------------------------------------
+# 3️⃣  Background scheduler (8 AM IST daily)
+# ------------------------------------------------------------
+scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
+scheduler.add_job(update_google_sheet, "cron", hour=8, minute=0)
+scheduler.start()
 
-    # Extract data
-    categories = [r["category"] for r in rows]
-    revenues = [float(r["revenue"]) for r in rows]
-
-    total = sum(revenues)
-    top_index = revenues.index(max(revenues))
-    top_cat, top_rev = categories[top_index], revenues[top_index]
-    mean_rev = statistics.mean(revenues)
-
-    contribution = (top_rev / total) * 100 if total else 0
-    insight = (
-        f"📊 Category '{top_cat}' leads with ₹{top_rev:,.0f}, "
-        f"contributing {contribution:.1f}% of total revenue ₹{total:,.0f}. "
-        f"Average category revenue is ₹{mean_rev:,.0f}. "
-    )
-
-    if contribution > 60:
-        insight += "⚡ Outstanding dominance in this category!"
-    elif contribution < 20:
-        insight += "📉 More balanced distribution across categories."
-    else:
-        insight += "📈 Healthy distribution with moderate concentration."
-
-    return insight
-
+# ------------------------------------------------------------
+# 4️⃣  Dashboard routes
+# ------------------------------------------------------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.route("/api/data")
 def api_data():
-    result = fetch_data()
-    insight = generate_insight(result["data"])
-    result["insight"] = insight
-    return jsonify(result)
+    try:
+        records = sheet.get_all_records()
+        return jsonify(records)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# ------------------------------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
-
-
-
+    app.run(host="0.0.0.0", port=10000)
