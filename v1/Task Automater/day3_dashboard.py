@@ -1,4 +1,3 @@
-# day3_dashboard.py (restored stable version)
 import os
 import json
 import gspread
@@ -8,7 +7,6 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Google Sheets setup
 SHEET_ID = os.getenv("SHEET_ID")
 GOOGLE_CREDS = os.getenv("GOOGLE_CREDS")
 
