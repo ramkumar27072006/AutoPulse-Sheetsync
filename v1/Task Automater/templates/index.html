@@ -1,178 +1,249 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tasklytics ⚙️ — AI-Driven Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoPulse Sheetsync — Analytics Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-
   <style>
+    :root {
+      --bg: #0e1117;
+      --surface: #1a1f29;
+      --accent: #2f6fed;
+      --accent-light: #60a5fa;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #2c3442;
+      --radius: 14px;
+      --shadow: 0 8px 25px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      margin: 0;
-      font-family: "Inter", sans-serif;
-      background: radial-gradient(circle at 25% 20%, #020617, #0f172a);
-      color: white;
-      overflow-x: hidden;
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 80px;
     }
+
     header {
-      font-family: "Orbitron", sans-serif;
-      font-size: 2.3rem;
-      text-align: center;
-      margin: 1.5rem 0;
-      color: #38bdf8;
-      text-shadow: 0 0 15px #38bdf8;
-      animation: flicker 3s infinite alternate;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(26,31,41,0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2.5rem;
+      z-index: 1000;
+      box-shadow: var(--shadow);
     }
-    @keyframes flicker {
-      from { text-shadow: 0 0 10px #38bdf8; }
-      to { text-shadow: 0 0 25px #67e8f9; }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--accent-light);
+      letter-spacing: 0.5px;
     }
-    #updated {
-      text-align: right;
-      margin-right: 3rem;
-      color: #94a3b8;
+
+    header span {
+      color: var(--muted);
       font-size: 0.9rem;
     }
-    .glass {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      backdrop-filter: blur(8px);
-      width: 85%;
-      margin: 2rem auto;
+
+    main {
+      width: 90%;
+      max-width: 1300px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       padding: 2rem;
-      border: 1px solid rgba(255,255,255,0.15);
+      transition: all 0.25s ease;
     }
-    #ai-box {
-      background: rgba(56, 189, 248, 0.08);
-      border-left: 4px solid #38bdf8;
-      padding: 1rem 1.5rem;
-      border-radius: 10px;
-      font-style: italic;
-      font-size: 1.05rem;
-      margin-bottom: 1.5rem;
-      color: #cbd5e1;
-      min-height: 60px;
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent-light);
     }
-    #ai-title {
-      font-family: "Orbitron";
-      color: #38bdf8;
+
+    .card h2 {
+      color: var(--accent-light);
       font-size: 1.2rem;
-      text-align: left;
-      margin-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
+
+    .insight {
+      background: rgba(47,111,237,0.1);
+      border-left: 4px solid var(--accent);
+      padding: 1.2rem;
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.95rem;
     }
-    th, td {
-      padding: 12px;
-      text-align: left;
-    }
-    th {
-      background: rgba(56, 189, 248, 0.15);
-      border-bottom: 2px solid #38bdf8;
-    }
-    tr:hover { background: rgba(56,189,248,0.1); }
 
     canvas {
-      margin-top: 2rem;
       width: 100%;
-      max-height: 420px;
+      height: 400px;
     }
+
     footer {
+      width: 100%;
       text-align: center;
-      font-size: 0.8rem;
-      color: #64748b;
-      margin-top: 2rem;
+      padding: 1.2rem 0;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+      background: #11141c;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .card { padding: 1.5rem; }
+    }
+
+    .pulse {
+      height: 4px;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent-light), transparent);
+      animation: pulse 2s infinite;
+      border-radius: 2px;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes pulse {
+      0% { background-position: -200px 0; }
+      100% { background-position: 200px 0; }
     }
   </style>
 </head>
 <body>
-  <header>Tasklytics ⚙️ – AI-Driven Insights Dashboard</header>
-  <div id="updated">Fetching data...</div>
+  <header>
+    <h1>AutoPulse Sheetsync</h1>
+    <span id="last-updated">Loading...</span>
+  </header>
 
-  <div class="glass">
-    <div id="ai-title">🤖 Tasklytics Insight Engine</div>
-    <div id="ai-box"><span id="ai-text">Analyzing data...</span></div>
+  <main>
+    <section class="card" style="grid-column: span 2;">
+      <div class="pulse"></div>
+      <h2>Business Intelligence Summary</h2>
+      <div id="insight-box" class="insight">
+        Fetching analytics...
+      </div>
+    </section>
 
-    <table id="data-table">
-      <thead><tr><th>Category</th><th>Revenue (₹)</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <canvas id="chart"></canvas>
-  </div>
+    <section class="card">
+      <h2>Revenue Distribution</h2>
+      <canvas id="barChart"></canvas>
+    </section>
 
-  <footer>© 2025 Tasklytics • Flask + Chart.js + Smart Insights</footer>
+    <section class="card">
+      <h2>Performance Trend</h2>
+      <canvas id="lineChart"></canvas>
+    </section>
+  </main>
+
+  <footer>© 2025 AutoPulse Data Systems — Securely powered by Google Sheets & Flask</footer>
 
   <script>
-    let chartInstance = null;
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/data");
+        const data = await res.json();
 
-    function typeWriterEffect(element, text) {
-      let i = 0;
-      element.textContent = "";
-      const interval = setInterval(() => {
-        if (i < text.length) {
-          element.textContent += text.charAt(i);
-          i++;
-        } else {
-          clearInterval(interval);
+        if (!data || data.length === 0) {
+          document.getElementById("insight-box").textContent = "No live data available.";
+          return;
         }
-      }, 20);
+
+        const categories = data.map(r => r.category);
+        const revenues = data.map(r => r.revenue);
+        const total = revenues.reduce((a, b) => a + b, 0);
+        const maxRevenue = Math.max(...revenues);
+        const topCategory = categories[revenues.indexOf(maxRevenue)];
+
+        document.getElementById("insight-box").innerHTML = `
+          <strong>${topCategory}</strong> remains the top-performing category today with 
+          <strong>₹${maxRevenue.toLocaleString()}</strong> in sales. 
+          Total revenue recorded: <strong>₹${total.toLocaleString()}</strong>.
+        `;
+
+        document.getElementById("last-updated").textContent =
+          "Updated: " + new Date().toLocaleString("en-IN");
+
+        renderCharts(categories, revenues);
+      } catch (e) {
+        document.getElementById("insight-box").textContent = "Failed to connect to live data source.";
+        console.error(e);
+      }
     }
 
-    async function fetchData() {
-      const response = await fetch("/api/data");
-      const result = await response.json();
-      const data = result.data;
-      const updated = result.updated;
-      const insight = result.insight;
-      document.getElementById("updated").innerText = "Last Updated → " + updated;
-
-      // Animate insight
-      const aiText = document.getElementById("ai-text");
-      typeWriterEffect(aiText, insight);
-
-      // Populate table
-      const tbody = document.querySelector("#data-table tbody");
-      tbody.innerHTML = "";
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.category}</td><td>${Number(row.revenue).toLocaleString()}</td>`;
-        tbody.appendChild(tr);
-      });
-
-      // Chart
-      const ctx = document.getElementById("chart").getContext("2d");
-      if (chartInstance) chartInstance.destroy();
-
-      chartInstance = new Chart(ctx, {
+    function renderCharts(labels, values) {
+      // Bar Chart
+      new Chart(document.getElementById("barChart"), {
         type: "bar",
         data: {
-          labels: data.map(r => r.category),
+          labels,
           datasets: [{
             label: "Revenue (₹)",
-            data: data.map(r => r.revenue),
-            backgroundColor: data.map(() => 
-              `hsl(${Math.random() * 360}, 80%, 55%)`
-            ),
+            data: values,
+            backgroundColor: "rgba(47,111,237,0.8)",
+            borderRadius: 6
           }]
         },
         options: {
-          plugins: { legend: { labels: { color: "#fff" } } },
+          plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: "#e2e8f0" } },
-            y: { ticks: { color: "#e2e8f0" } }
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "#1f2937" } },
+            x: { ticks: { color: "#94a3b8" }, grid: { display: false } }
+          }
+        }
+      });
+
+      // Line Chart
+      new Chart(document.getElementById("lineChart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Revenue Trend (₹)",
+            data: values,
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59,130,246,0.15)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 4,
+            pointBackgroundColor: "#60a5fa"
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "#1f2937" } },
+            x: { ticks: { color: "#94a3b8" }, grid: { display: false } }
           }
         }
       });
     }
 
     fetchData();
-    setInterval(fetchData, 5 * 60 * 1000); // every 5 min
   </script>
 </body>
 </html>
