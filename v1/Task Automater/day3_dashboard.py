@@ -1,24 +1,36 @@
+# day3_dashboard.py (restored stable version)
+import os
+import json
 import gspread
+from flask import Flask, jsonify, render_template
 from google.oauth2.service_account import Credentials
-import json, os
 from datetime import datetime
 
-def update_data():
-    creds_json = os.getenv("GOOGLE_CREDS")
-    spreadsheet_id = os.getenv("SHEET_ID")
+app = Flask(__name__)
 
-    creds = Credentials.from_service_account_info(json.loads(creds_json))
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(spreadsheet_id).sheet1
+# Google Sheets setup
+SHEET_ID = os.getenv("SHEET_ID")
+GOOGLE_CREDS = os.getenv("GOOGLE_CREDS")
 
-    # Read current data
-    data = sheet.get_all_records()
+if not (SHEET_ID and GOOGLE_CREDS):
+    raise ValueError("Missing Google credentials or Sheet ID environment variables")
 
-    # Simulate new daily column or calculation
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    sheet.update_cell(1, len(data[0]) + 1, f"Update @ {now}")
+creds = Credentials.from_service_account_info(json.loads(GOOGLE_CREDS))
+gc = gspread.authorize(creds)
+sheet = gc.open_by_key(SHEET_ID).sheet1
 
-    print(f"[{now}] Data updated successfully.")
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/api/data")
+def api_data():
+    try:
+        records = sheet.get_all_records()
+        return jsonify(records)
+    except Exception as e:
+        print(f"⚠️ Google Sheets fetch failed: {e}")
+        return jsonify([])
 
 if __name__ == "__main__":
-    update_data()
+    app.run(host="0.0.0.0", port=10000)
