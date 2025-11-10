@@ -6,6 +6,7 @@
   <title>AutoPulse Sheetsync — Analytics Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     :root {
       --bg: #0e1117;
@@ -23,21 +24,20 @@
 
     body {
       font-family: 'Poppins', sans-serif;
-      background-color: var(--bg);
+      background: radial-gradient(circle at top left, #111827, #0e1117);
       color: var(--text);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding-top: 80px;
+      overflow-x: hidden;
     }
 
     header {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: rgba(26,31,41,0.9);
+      top: 0; left: 0; right: 0;
+      background: rgba(26,31,41,0.85);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -112,6 +112,7 @@
       color: var(--muted);
       font-size: 0.85rem;
       background: #11141c;
+      margin-top: auto;
     }
 
     @media (max-width: 900px) {
@@ -134,6 +135,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <h1>AutoPulse Sheetsync</h1>
@@ -144,9 +146,7 @@
     <section class="card" style="grid-column: span 2;">
       <div class="pulse"></div>
       <h2>Business Intelligence Summary</h2>
-      <div id="insight-box" class="insight">
-        Fetching analytics...
-      </div>
+      <div id="insight-box" class="insight">Fetching analytics...</div>
     </section>
 
     <section class="card">
@@ -160,12 +160,14 @@
     </section>
   </main>
 
-  <footer>© 2025 AutoPulse Data Systems — Securely powered by Google Sheets & Flask</footer>
+  <footer>© 2025 AutoPulse Data Systems — Powered by Google Sheets & Flask</footer>
 
   <script>
+    let barChart, lineChart;
+
     async function fetchData() {
       try {
-        const res = await fetch("/api/data");
+        const res = await fetch("/api/data?_=" + Date.now(), { cache: "no-store" });
         const data = await res.json();
 
         if (!data || data.length === 0) {
@@ -178,10 +180,11 @@
         const total = revenues.reduce((a, b) => a + b, 0);
         const maxRevenue = Math.max(...revenues);
         const topCategory = categories[revenues.indexOf(maxRevenue)];
+        const date = data[0].date || "Today";
 
         document.getElementById("insight-box").innerHTML = `
-          <strong>${topCategory}</strong> remains the top-performing category today with 
-          <strong>₹${maxRevenue.toLocaleString()}</strong> in sales. 
+          <strong>${topCategory}</strong> remains the top-performing category as of ${date}, 
+          with <strong>₹${maxRevenue.toLocaleString()}</strong> in sales. 
           Total revenue recorded: <strong>₹${total.toLocaleString()}</strong>.
         `;
 
@@ -190,21 +193,24 @@
 
         renderCharts(categories, revenues);
       } catch (e) {
-        document.getElementById("insight-box").textContent = "Failed to connect to live data source.";
         console.error(e);
+        document.getElementById("insight-box").textContent =
+          "⚠️ Failed to connect to live data source.";
       }
     }
 
     function renderCharts(labels, values) {
-      // Bar Chart
-      new Chart(document.getElementById("barChart"), {
+      if (barChart) barChart.destroy();
+      if (lineChart) lineChart.destroy();
+
+      barChart = new Chart(document.getElementById("barChart"), {
         type: "bar",
         data: {
           labels,
           datasets: [{
             label: "Revenue (₹)",
             data: values,
-            backgroundColor: "rgba(47,111,237,0.8)",
+            backgroundColor: "rgba(47,111,237,0.85)",
             borderRadius: 6
           }]
         },
@@ -217,15 +223,14 @@
         }
       });
 
-      // Line Chart
-      new Chart(document.getElementById("lineChart"), {
+      lineChart = new Chart(document.getElementById("lineChart"), {
         type: "line",
         data: {
           labels,
           datasets: [{
             label: "Revenue Trend (₹)",
             data: values,
-            borderColor: "#3b82f6",
+            borderColor: "#60a5fa",
             backgroundColor: "rgba(59,130,246,0.15)",
             fill: true,
             tension: 0.35,
@@ -243,7 +248,18 @@
       });
     }
 
+    // Initial load only
     fetchData();
+
+    // Schedule auto-refresh at local midnight (once daily)
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 0, 0);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+    setTimeout(() => {
+      location.reload();
+    }, msUntilMidnight);
   </script>
 </body>
 </html>
