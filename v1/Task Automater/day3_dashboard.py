@@ -5,57 +5,62 @@ from flask import Flask, jsonify, render_template
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --------------------------------------
+# ----------------------------------------------------
 # Logging setup
-# --------------------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# ----------------------------------------------------
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("autopulse")
 
-# --------------------------------------
-# Google API scopes
-# --------------------------------------
+# ----------------------------------------------------
+# Google Sheets Access
+# ----------------------------------------------------
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly"
 ]
 
-# --------------------------------------
-# Load credentials
-# --------------------------------------
 def load_credentials():
-    """Load Google credentials from Render secret or local JSON."""
+    """Load service account credentials from GOOGLE_CREDS or local file."""
     creds_json = os.getenv("GOOGLE_CREDS")
     if creds_json:
         try:
-            info = json.loads(creds_json)
+            try:
+                info = json.loads(creds_json)
+            except json.JSONDecodeError:
+                fixed = creds_json.replace("'", '"').replace("\\n", "")
+                info = json.loads(fixed)
             return Credentials.from_service_account_info(info, scopes=SCOPES)
         except Exception as e:
-            logger.exception("Invalid GOOGLE_CREDS format")
-            raise ValueError("Invalid GOOGLE_CREDS format") from e
+            logger.exception("Failed to parse GOOGLE_CREDS JSON")
+            raise ValueError("Invalid GOOGLE_CREDS JSON") from e
 
     local_path = os.path.join(os.path.dirname(__file__), "service_account.json")
     if os.path.exists(local_path):
         logger.info("Using local service_account.json file")
         return Credentials.from_service_account_file(local_path, scopes=SCOPES)
 
-    raise ValueError("Missing Google service account credentials")
+    raise ValueError("Missing Google credentials (GOOGLE_CREDS not set and no local file found)")
+
 
 def get_gspread_client():
     creds = load_credentials()
     return gspread.authorize(creds)
 
-# --------------------------------------
-# Flask app setup
-# --------------------------------------
+
+# ----------------------------------------------------
+# Flask App Setup
+# ----------------------------------------------------
 app = Flask(__name__, static_folder="static", template_folder="templates")
+
 SHEET_ID = os.getenv("SHEET_ID", "").strip()
 SHEET_NAME = os.getenv("SHEET_NAME", "Sheet1").strip()
 
-# --------------------------------------
-# Fetch data dynamically
-# --------------------------------------
+
+# ----------------------------------------------------
+# Data Fetch Logic
+# ----------------------------------------------------
 def fetch_sheet_data():
-    """Fetch latest day's data from the rightmost column of the Google Sheet."""
+    """Fetch latest and previous day columns from Google Sheets."""
     if not SHEET_ID:
         logger.warning("SHEET_ID not configured")
         return []
@@ -63,70 +68,82 @@ def fetch_sheet_data():
     try:
         gc = get_gspread_client()
         sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
-        all_values = sheet.get_all_values()
 
-        if len(all_values) < 2:
-            logger.warning("Empty or invalid sheet.")
+        data = sheet.get_all_values()
+        if not data or len(data) < 2:
             return []
 
-        headers = [str(h).strip() for h in all_values[0] if h]
-        latest_col = len(headers) - 1
-        latest_date = headers[latest_col]
+        headers = data[0]
+        rows = data[1:]
 
-        logger.info(f"📊 Fetching latest column: {latest_date} (index {latest_col})")
+        category_index = headers.index("category")
+        last_col_index = len(headers) - 1
+        prev_col_index = len(headers) - 2 if len(headers) > 2 else None
 
-        dataset = []
-        for row in all_values[1:]:
-            if len(row) > latest_col:
-                category = str(row[0]).strip() or "Unknown"
-                val = row[latest_col].strip()
-                try:
-                    revenue = float(str(val).replace(",", "").replace("₹", "").strip())
-                except Exception:
-                    revenue = 0.0
-                dataset.append({
-                    "category": category,
-                    "revenue": revenue,
-                    "date": latest_date
-                })
+        last_col_name = headers[last_col_index]
+        prev_col_name = headers[prev_col_index] if prev_col_index else None
 
-        return dataset
+        logger.info(f"Latest column: {last_col_name}, Previous column: {prev_col_name}")
+
+        formatted_data = []
+        for row in rows:
+            if len(row) <= last_col_index:
+                continue
+            category = row[category_index] or "Unknown"
+            latest_value = parse_number(row[last_col_index])
+            prev_value = parse_number(row[prev_col_index]) if prev_col_index else None
+
+            growth = None
+            if prev_value and prev_value != 0:
+                growth = ((latest_value - prev_value) / prev_value) * 100
+
+            formatted_data.append({
+                "category": category,
+                "latest": latest_value,
+                "previous": prev_value,
+                "growth": round(growth, 2) if growth is not None else None,
+                "date": last_col_name
+            })
+
+        return formatted_data
 
     except Exception as e:
-        logger.exception("Error fetching Google Sheet data")
+        logger.exception("Error fetching sheet data")
         return []
 
-# --------------------------------------
-# Routes
-# --------------------------------------
+
+def parse_number(value):
+    """Convert formatted strings to floats safely."""
+    try:
+        return float(str(value).replace(",", "").strip())
+    except Exception:
+        return 0.0
+
+
+# ----------------------------------------------------
+# Flask Routes
+# ----------------------------------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/api/data")
 def api_data():
+    """Return JSON with latest + growth info."""
     data = fetch_sheet_data()
     if not data:
-        # fallback demo
         data = [
-            {"category": "Electronics", "revenue": 120000},
-            {"category": "Books", "revenue": 45000},
-            {"category": "Fashion", "revenue": 82000}
+            {"category": "Electronics", "latest": 120000, "previous": 100000, "growth": 20.0},
+            {"category": "Books", "latest": 45000, "previous": 48000, "growth": -6.25},
+            {"category": "Fashion", "latest": 82000, "previous": 79000, "growth": 3.8}
         ]
     return jsonify(data)
 
-@app.after_request
-def disable_cache(response):
-    """Force fresh data on each reload."""
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
 
-# --------------------------------------
-# Entrypoint
-# --------------------------------------
+# ----------------------------------------------------
+# Main App Entry
+# ----------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    logger.info(f"Starting AutoPulse Sheetsync on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
