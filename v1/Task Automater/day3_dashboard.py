@@ -59,6 +59,10 @@ def fetch_sheet_data():
 
         gc = get_gspread_client()
         sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+        metadata = sheet.spreadsheet.fetch_sheet_metadata()
+        logger.info(f"🧩 Sheet last modifiedTime: {metadata.get('properties', {}).get('modifiedTime', 'unknown')}")
+        logger.info(f"🧩 Header row fetched: {sheet.row_values(1)}")
+
 
         headers = sheet.row_values(1)
         rows = sheet.get_all_values()[1:]
@@ -136,3 +140,4 @@ def api_data():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
