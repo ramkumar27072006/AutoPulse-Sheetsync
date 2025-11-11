@@ -20,108 +20,101 @@ SCOPES = [
 ]
 
 def load_credentials():
-    """Load service account credentials from GOOGLE_CREDS or local file."""
     creds_json = os.getenv("GOOGLE_CREDS")
     if creds_json:
         try:
             try:
                 info = json.loads(creds_json)
             except json.JSONDecodeError:
-                fixed = creds_json.replace("'", '"').replace("\\n", "")
-                info = json.loads(fixed)
+                info = json.loads(creds_json.replace("'", '"').replace("\\n", ""))
             return Credentials.from_service_account_info(info, scopes=SCOPES)
         except Exception as e:
-            logger.exception("Failed to parse GOOGLE_CREDS JSON")
-            raise ValueError("Invalid GOOGLE_CREDS JSON") from e
-
-    local_path = os.path.join(os.path.dirname(__file__), "service_account.json")
-    if os.path.exists(local_path):
-        logger.info("Using local service_account.json file")
-        return Credentials.from_service_account_file(local_path, scopes=SCOPES)
-
-    raise ValueError("Missing Google credentials (GOOGLE_CREDS not set and no local file found)")
+            logger.error("Invalid GOOGLE_CREDS JSON: %s", e)
+            raise
+    path = os.path.join(os.path.dirname(__file__), "service_account.json")
+    if os.path.exists(path):
+        return Credentials.from_service_account_file(path, scopes=SCOPES)
+    raise ValueError("Missing Google credentials (GOOGLE_CREDS not set or file missing)")
 
 
 def get_gspread_client():
-    creds = load_credentials()
-    return gspread.authorize(creds)
-
+    return gspread.authorize(load_credentials())
 
 # ----------------------------------------------------
-# Flask App Setup
+# Flask Setup
 # ----------------------------------------------------
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
 SHEET_ID = os.getenv("SHEET_ID", "").strip()
 SHEET_NAME = os.getenv("SHEET_NAME", "Sheet1").strip()
 
-
 # ----------------------------------------------------
 # Data Fetch Logic
 # ----------------------------------------------------
 def fetch_sheet_data():
-    """Fetch latest and previous day columns from Google Sheets."""
-    if not SHEET_ID:
-        logger.warning("SHEET_ID not configured")
-        return []
-
+    """Fetch last 2 non-empty date columns and compute growth."""
     try:
+        if not SHEET_ID:
+            raise ValueError("SHEET_ID not configured")
+
         gc = get_gspread_client()
         sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
 
-        data = sheet.get_all_values()
-        if not data or len(data) < 2:
+        headers = sheet.row_values(1)
+        rows = sheet.get_all_values()[1:]
+
+        # Dynamically detect all columns with at least one numeric value
+        valid_col_indices = []
+        for idx in range(2, len(headers)):  # skip category and revenue
+            col = [r[idx] for r in rows if idx < len(r)]
+            numeric_count = sum(1 for v in col if parse_number(v) > 0)
+            if numeric_count > 0:
+                valid_col_indices.append(idx)
+
+        if len(valid_col_indices) == 0:
+            logger.warning("No valid daily columns found")
             return []
 
-        headers = data[0]
-        rows = data[1:]
+        last_col = valid_col_indices[-1]
+        prev_col = valid_col_indices[-2] if len(valid_col_indices) > 1 else None
 
-        category_index = headers.index("category")
-        last_col_index = len(headers) - 1
-        prev_col_index = len(headers) - 2 if len(headers) > 2 else None
+        logger.info(f"Last column detected: {headers[last_col]}, Previous: {headers[prev_col] if prev_col else 'N/A'}")
 
-        last_col_name = headers[last_col_index]
-        prev_col_name = headers[prev_col_index] if prev_col_index else None
-
-        logger.info(f"Latest column: {last_col_name}, Previous column: {prev_col_name}")
-
-        formatted_data = []
+        data = []
         for row in rows:
-            if len(row) <= last_col_index:
-                continue
-            category = row[category_index] or "Unknown"
-            latest_value = parse_number(row[last_col_index])
-            prev_value = parse_number(row[prev_col_index]) if prev_col_index else None
+            category = row[0] if len(row) > 0 else "Unknown"
+            latest = parse_number(row[last_col]) if len(row) > last_col else 0
+            previous = parse_number(row[prev_col]) if prev_col and len(row) > prev_col else 0
+            growth = ((latest - previous) / previous * 100) if previous else None
 
-            growth = None
-            if prev_value and prev_value != 0:
-                growth = ((latest_value - prev_value) / prev_value) * 100
-
-            formatted_data.append({
+            data.append({
                 "category": category,
-                "latest": latest_value,
-                "previous": prev_value,
+                "latest": latest,
+                "previous": previous,
                 "growth": round(growth, 2) if growth is not None else None,
-                "date": last_col_name
+                "date": headers[last_col]
             })
 
-        return formatted_data
+        return data
 
     except Exception as e:
-        logger.exception("Error fetching sheet data")
+        logger.exception("Error fetching Google Sheet data")
         return []
 
 
 def parse_number(value):
-    """Convert formatted strings to floats safely."""
+    """Safely parse any numeric value from sheet."""
     try:
-        return float(str(value).replace(",", "").strip())
+        if isinstance(value, (int, float)):
+            return float(value)
+        value = str(value).replace(",", "").replace("₹", "").strip()
+        return float(value) if value and value != "nan" else 0.0
     except Exception:
         return 0.0
 
 
 # ----------------------------------------------------
-# Flask Routes
+# Routes
 # ----------------------------------------------------
 @app.route("/")
 def home():
@@ -130,7 +123,6 @@ def home():
 
 @app.route("/api/data")
 def api_data():
-    """Return JSON with latest + growth info."""
     data = fetch_sheet_data()
     if not data:
         data = [
@@ -141,9 +133,6 @@ def api_data():
     return jsonify(data)
 
 
-# ----------------------------------------------------
-# Main App Entry
-# ----------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
