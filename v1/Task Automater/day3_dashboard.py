@@ -165,6 +165,39 @@ def api_sync():
     result = sync_from_master()
     return jsonify(result)
 
+# debug endpoint — paste anywhere after app = Flask(...)
+@app.route("/api/debug")
+def api_debug():
+    """Return raw low-level sheet info to debug access problems."""
+    try:
+        creds = load_credentials()            # will raise if CREDS parse fails
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(SHEET_ID)
+        # list available worksheet titles
+        titles = [ws.title for ws in sh.worksheets()]
+        # try selecting the configured worksheet name (falls back to first)
+        try:
+            ws = sh.worksheet(SHEET_NAME)
+        except Exception:
+            ws = sh.get_worksheet(0)
+        # fetch raw values
+        all_vals = ws.get_all_values()
+        header = all_vals[0] if len(all_vals) > 0 else []
+        first_rows = all_vals[1:4] if len(all_vals) > 1 else []
+        return jsonify({
+            "ok": True,
+            "sheet_title_used": ws.title,
+            "available_titles": titles,
+            "header_row": header,
+            "sample_rows": first_rows,
+            "row_count": len(all_vals)
+        })
+    except Exception as e:
+        logger.exception("Debug endpoint failure")
+        return jsonify({"ok": False, "error": str(e)})
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
