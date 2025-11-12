@@ -1,0 +1,45 @@
+{
+    "timestamp": "2025-11-06T20:24:20.396413",
+    "summary": [
+        {
+            "category": "Accessories",
+            "revenue": 4703930.7
+        },
+        {
+            "category": "Appliances",
+            "revenue": 14775259.34
+        },
+        {
+            "category": "Beauty",
+            "revenue": 12569063.88
+        },
+        {
+            "category": "Books",
+            "revenue": 13179978.9
+        },
+        {
+            "category": "Clothing",
+            "revenue": 17408191.64
+        },
+        {
+            "category": "Electronics",
+            "revenue": 14482077.62
+        },
+        {
+            "category": "Games",
+            "revenue": 15385602.49
+        },
+        {
+            "category": "Other",
+            "revenue": 3262983.2
+        },
+        {
+            "category": "Outdoors",
+            "revenue": 5939075.44
+        },
+        {
+            "category": "Smartphones",
+            "revenue": 11034981.47
+        }
+    ]
+}
