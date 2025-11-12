@@ -1,0 +1,129 @@
+/* ---------- Global Reset ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ---------- Global ---------- */
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Header ---------- */
+header {
+  text-align: center;
+  padding: 2rem 1rem;
+  background-color: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+header h1 {
+  font-size: 2rem;
+  color: #f8fafc;
+  letter-spacing: 0.5px;
+}
+
+header p {
+  color: #94a3b8;
+  margin-top: 0.4rem;
+}
+
+/* ---------- Summary ---------- */
+.summary {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.summary-card {
+  background-color: #1e293b;
+  border-radius: 1rem;
+  padding: 1.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.summary-card h2 {
+  font-size: 1.8rem;
+  color: #60a5fa;
+}
+
+.summary-card p {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+/* ---------- Chart Section ---------- */
+.chart-section {
+  width: 90%;
+  max-width: 900px;
+  margin: 0 auto;
+  background-color: #1e293b;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.chart-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #f8fafc;
+}
+
+/* ---------- Table Section ---------- */
+.table-section {
+  width: 90%;
+  max-width: 900px;
+  margin: 2rem auto;
+  background-color: #1e293b;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.table-section h3 {
+  margin-bottom: 1rem;
+  color: #f8fafc;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
+
+th, td {
+  border-bottom: 1px solid #334155;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+th {
+  background-color: #334155;
+  color: #f1f5f9;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+tbody tr:hover {
+  background-color: #273549;
+}
+
+/* ---------- Footer ---------- */
+footer {
+  margin-top: auto;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  background-color: #1e293b;
+  border-top: 1px solid #334155;
+}
