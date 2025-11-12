@@ -1,7 +1,14 @@
-gspread
-google-auth
-google-auth-oauthlib
-pandas
-gdown
-Flask
-gunicorn
+Flask==3.0.3
+gunicorn==21.2.0
+
+# Google Sheets + Auth
+gspread==6.0.2
+google-auth==2.34.0
+google-auth-oauthlib==1.2.1
+
+# Data handling
+pandas==2.2.3
+openpyxl==3.1.5
+
+# File download from Google Drive
+gdown==5.2.0
